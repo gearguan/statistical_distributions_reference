@@ -2,212 +2,137 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 h2.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)}
-.cat-label{font-size:11px;font-weight:500;padding:2px 8px;border-radius:var(--border-radius-md);display:inline-block;margin-bottom:6px}
-.cat-sym{background:#E6F1FB;color:#0C447C}
-.cat-skew{background:#FAEEDA;color:#633806}
-.cat-multi{background:#EEEDFE;color:#3C3489}
-.cat-bound{background:#EAF3DE;color:#27500A}
-.cat-disc{background:#FAECE7;color:#712B13}
 .dist-name{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:1px}
-.dist-param{font-size:11px;color:var(--color-text-secondary);margin-bottom:4px;font-family:var(--font-mono)}
+.dist-param{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px;font-family:var(--font-mono)}
 .dist-desc{font-size:11px;color:var(--color-text-secondary);line-height:1.5}
 .dist-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:10px 12px;cursor:pointer;transition:border-color .15s}
 .dist-card:hover{border-color:var(--color-border-secondary)}
-.dist-card.selected{border-color:#378ADD;border-width:1.5px}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:1rem}
-.section-title{font-size:12px;font-weight:500;color:var(--color-text-secondary);margin:1rem 0 6px;text-transform:uppercase;letter-spacing:.04em}
+.dist-card.selected{border:1.5px solid #378ADD}
+.card-inner{display:flex;flex-direction:row;align-items:flex-start;justify-content:space-between;gap:8px;width:100%}
+.card-text{flex:1 1 auto;min-width:0;overflow:hidden}
+.card-thumb{flex:0 0 80px;width:80px;display:flex;align-items:center;justify-content:flex-end}
+.card-thumb svg{display:block}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;margin-bottom:1rem}
+.section-title{font-size:11px;font-weight:500;color:var(--color-text-secondary);margin:1rem 0 5px;text-transform:uppercase;letter-spacing:.06em}
 </style>
 
 <h2 class="sr-only">常见统计分布参考卡片，含PDF曲线交互图</h2>
 
 <div style="padding:1rem 0">
-
 <div class="section-title">对称类</div>
 <div class="grid" id="g-sym"></div>
-
 <div class="section-title">单侧 / 右偏类</div>
 <div class="grid" id="g-skew"></div>
-
 <div class="section-title">多峰 / 混合类 · 有界类</div>
 <div class="grid" id="g-other"></div>
-
 <div class="section-title">离散类</div>
 <div class="grid" id="g-disc"></div>
 
 <div style="border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:12px 16px;margin-top:.5rem">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-    <span style="font-size:13px;font-weight:500;color:var(--color-text-primary)" id="preview-title">点击上方卡片查看PDF曲线</span>
-    <span style="font-size:11px;color:var(--color-text-secondary)" id="preview-formula"></span>
+  <div style="display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+    <span style="font-size:13px;font-weight:500;color:var(--color-text-primary)" id="preview-title">点击上方卡片查看 PDF 曲线</span>
+    <span style="font-size:11px;color:var(--color-text-secondary);font-family:var(--font-mono)" id="preview-formula"></span>
   </div>
   <div style="position:relative;width:100%;height:200px">
     <canvas id="previewChart" role="img" aria-label="所选分布的概率密度函数曲线">选择一个分布后此处显示PDF曲线。</canvas>
   </div>
-  <div style="font-size:11px;color:var(--color-text-secondary);margin-top:6px" id="preview-note"></div>
+  <div style="font-size:11px;color:var(--color-text-secondary);margin-top:6px;line-height:1.6" id="preview-note"></div>
 </div>
-
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
 const dists = [
-  {id:'norm', group:'sym', name:'正态分布', params:'μ, σ', formula:'f(x)=1/(σ√2π)·e^−(x−μ)²/2σ²', desc:'对称钟形，中心极限定理归宿', note:'均值=μ，方差=σ²；最常见，可加性好',
-   color:'#378ADD', fn: x => Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI), range:[-4,4]},
-
-  {id:'lap', group:'sym', name:'拉普拉斯分布', params:'μ, b', formula:'f(x)=1/(2b)·e^−|x−μ|/b', desc:'尖峰重尾，差分信号常见', note:'比正态更集中于均值，尾部衰减更慢（指数而非高斯）',
-   color:'#534AB7', fn: x => 0.5*Math.exp(-Math.abs(x)), range:[-5,5]},
-
-  {id:'t', group:'sym', name:'t 分布', params:'ν (自由度)', formula:'f(x)∝(1+x²/ν)^−(ν+1)/2', desc:'比正态更重尾，小样本替代', note:'ν→∞时趋向标准正态；ν=1时即柯西分布',
-   color:'#0F6E56', fn: x => { const nu=5; return Math.pow(1+x*x/nu,-(nu+1)/2)/3.2; }, range:[-5,5]},
-
-  {id:'lognorm', group:'skew', name:'对数正态', params:'μ_log, σ_log', formula:'f(x)=1/(xσ√2π)·e^−(lnx−μ)²/2σ²', desc:'取对数后为正态，只取正值', note:'常见于收入、粒径、价格；右偏且有正值约束',
-   color:'#BA7517', fn: x => { if(x<=0)return 0; return Math.exp(-0.5*Math.pow(Math.log(x)-0.5,2))/(x*0.5*Math.sqrt(2*Math.PI)); }, range:[0.01,8]},
-
-  {id:'gamma', group:'skew', name:'Gamma 分布', params:'k (形状), θ (尺度)', formula:'f(x)=x^(k−1)·e^(−x/θ)/(θ^k·Γ(k))', desc:'等待时间、强度类信号', note:'k=1时退化为指数分布；均值=kθ，方差=kθ²',
-   color:'#D85A30', fn: x => { if(x<=0)return 0; const k=2,th=1; return Math.pow(x,k-1)*Math.exp(-x/th)/(th**k); }, range:[0.01,8]},
-
-  {id:'exp', group:'skew', name:'指数分布', params:'λ (速率)', formula:'f(x)=λ·e^(−λx)', desc:'事件间隔时间，无记忆性', note:'Gamma(k=1,θ=1/λ) 的特例；均值=1/λ',
-   color:'#993C1D', fn: x => { if(x<0)return 0; return Math.exp(-x); }, range:[0,6]},
-
-  {id:'weibull', group:'skew', name:'Weibull 分布', params:'k (形状), λ (尺度)', formula:'f(x)=(k/λ)(x/λ)^(k−1)·e^−(x/λ)^k', desc:'寿命分析，形状可调偏度', note:'k<1右偏重尾，k=1退化为指数，k>1左偏峰值右移',
-   color:'#639922', fn: x => { if(x<=0)return 0; const k=2,la=2; return (k/la)*Math.pow(x/la,k-1)*Math.exp(-Math.pow(x/la,k)); }, range:[0.01,5]},
-
-  {id:'chisq', group:'skew', name:'卡方分布', params:'k (自由度)', formula:'f(x)=x^(k/2−1)·e^(−x/2)/(2^(k/2)·Γ(k/2))', desc:'统计检验基础分布', note:'k个标准正态平方和；均值=k，方差=2k',
-   color:'#3B6D11', fn: x => { if(x<=0)return 0; const k=4; return Math.pow(x,k/2-1)*Math.exp(-x/2)/4; }, range:[0.01,14]},
-
-  {id:'gmm', group:'other', name:'混合高斯 GMM', params:'π_k, μ_k, σ_k', formula:'f(x)=Σ π_k·N(x;μ_k,σ_k²)', desc:'多子群叠加，形态最灵活', note:'双峰示例：0.5·N(−2,1)+0.5·N(2,1)',
-   color:'#7F77DD', fn: x => { const n=v=>Math.exp(-0.5*v*v)/Math.sqrt(2*Math.PI); return 0.5*n(x+2)+0.5*n(x-2); }, range:[-6,6]},
-
-  {id:'unif', group:'other', name:'均匀分布', params:'a, b', formula:'f(x)=1/(b−a)，x∈[a,b]', desc:'[a,b] 内等概率，无偏好', note:'最大熵分布；均值=(a+b)/2，方差=(b−a)²/12',
-   color:'#888780', fn: x => (x>=-2&&x<=2)?0.25:0, range:[-3,3]},
-
-  {id:'beta', group:'other', name:'Beta 分布', params:'α, β', formula:'f(x)=x^(α−1)(1−x)^(β−1)/B(α,β)', desc:'取值 [0,1]，形态极灵活', note:'α=β时对称；α<1或β<1时边界为无穷大',
-   color:'#1D9E75', fn: x => { if(x<=0||x>=1)return 0; return Math.pow(x,1)*Math.pow(1-x,2)*12; }, range:[0,1]},
-
-  {id:'pois', group:'disc', name:'泊松分布', params:'λ (速率)', formula:'P(k)=λ^k·e^(−λ)/k!', desc:'单位时间内事件计数', note:'均值=方差=λ；λ较大时趋近正态',
-   color:'#D4537E', isDiscrete:true, fn: k => { const la=4; let f=1; for(let i=1;i<=k;i++) f*=i; return Math.pow(la,k)*Math.exp(-la)/f; }, range:[0,12]},
-
-  {id:'binom', group:'disc', name:'二项分布', params:'n, p', formula:'P(k)=C(n,k)·p^k(1−p)^(n−k)', desc:'n次独立试验中成功次数', note:'均值=np，方差=np(1−p)',
-   color:'#E24B4A', isDiscrete:true,
-   fn: k => { const n=10,p=0.4; let c=1; for(let i=0;i<k;i++) c*=(n-i)/(i+1); return c*Math.pow(p,k)*Math.pow(1-p,n-k); }, range:[0,10]},
-
-  {id:'negbinom', group:'disc', name:'负二项分布', params:'r, p', formula:'P(k)=C(k+r−1,k)·p^r(1−p)^k', desc:'首次第r次成功前失败数', note:'r=1时退化为几何分布；过离散数据常用',
-   color:'#F0997B', isDiscrete:true,
-   fn: k => { const r=3,p=0.5; let c=1; for(let i=0;i<k;i++) c*=(r+i)/(i+1); return c*Math.pow(p,r)*Math.pow(1-p,k); }, range:[0,12]},
+  {id:'norm', group:'sym', name:'正态分布', params:'μ, σ', formula:'f(x)=1/(σ√2π)·exp(−(x−μ)²/2σ²)', desc:'对称钟形，中心极限定理归宿', note:'均值=μ，方差=σ²；最常见，可加性好', color:'#378ADD', fn:x=>Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI), range:[-4,4]},
+  {id:'lap', group:'sym', name:'拉普拉斯分布', params:'μ, b', formula:'f(x)=1/(2b)·exp(−|x−μ|/b)', desc:'尖峰重尾，差分信号常见', note:'比正态更集中于均值，尾部按指数衰减而非高斯衰减', color:'#534AB7', fn:x=>0.5*Math.exp(-Math.abs(x)), range:[-5,5]},
+  {id:'t', group:'sym', name:'t 分布', params:'ν（自由度）', formula:'f(x)∝(1+x²/ν)^(−(ν+1)/2)', desc:'比正态更重尾，小样本替代', note:'ν→∞ 时趋向标准正态；ν=1 时即柯西分布', color:'#0F6E56', fn:x=>Math.pow(1+x*x/5,-(5+1)/2)/3.2, range:[-5,5]},
+  {id:'lognorm', group:'skew', name:'对数正态', params:'μ_log, σ_log', formula:'f(x)=1/(xσ√2π)·exp(−(lnx−μ)²/2σ²)', desc:'取对数后为正态，只取正值', note:'常见于收入、粒径、价格；右偏且有正值约束', color:'#BA7517', fn:x=>{if(x<=0)return 0;return Math.exp(-0.5*Math.pow(Math.log(x)-0.5,2))/(x*0.5*Math.sqrt(2*Math.PI));}, range:[0.01,8]},
+  {id:'gamma', group:'skew', name:'Gamma 分布', params:'k（形状）, θ（尺度）', formula:'f(x)=x^(k−1)·e^(−x/θ)/(θ^k·Γ(k))', desc:'等待时间、强度类信号', note:'k=1 时退化为指数分布；均值=kθ，方差=kθ²', color:'#D85A30', fn:x=>{if(x<=0)return 0;return x*Math.exp(-x);}, range:[0.01,8]},
+  {id:'exp', group:'skew', name:'指数分布', params:'λ（速率）', formula:'f(x)=λ·exp(−λx)', desc:'事件间隔时间，无记忆性', note:'Gamma(k=1, θ=1/λ) 的特例；均值=1/λ', color:'#993C1D', fn:x=>{if(x<0)return 0;return Math.exp(-x);}, range:[0,6]},
+  {id:'weibull', group:'skew', name:'Weibull 分布', params:'k（形状）, λ（尺度）', formula:'f(x)=(k/λ)(x/λ)^(k−1)·exp(−(x/λ)^k)', desc:'寿命分析，形状可调偏度', note:'k<1 重尾，k=1 退化为指数，k>1 峰值右移', color:'#639922', fn:x=>{if(x<=0)return 0;const k=2,la=2;return (k/la)*Math.pow(x/la,k-1)*Math.exp(-Math.pow(x/la,k));}, range:[0.01,5]},
+  {id:'chisq', group:'skew', name:'卡方分布', params:'k（自由度）', formula:'f(x)=x^(k/2−1)·e^(−x/2)/(2^(k/2)·Γ(k/2))', desc:'统计检验基础，正态平方和', note:'k 个标准正态的平方和；均值=k，方差=2k', color:'#3B6D11', fn:x=>{if(x<=0)return 0;return Math.pow(x,1)*Math.exp(-x/2)/4;}, range:[0.01,14]},
+  {id:'gmm', group:'other', name:'混合高斯 GMM', params:'π_k, μ_k, σ_k', formula:'f(x)=Σ πk·N(x; μk, σk²)', desc:'多子群叠加，形态最灵活', note:'双峰示例：0.5·N(−2,1)+0.5·N(2,1)', color:'#7F77DD', fn:x=>{const n=v=>Math.exp(-0.5*v*v)/Math.sqrt(2*Math.PI);return 0.5*n(x+2)+0.5*n(x-2);}, range:[-6,6]},
+  {id:'unif', group:'other', name:'均匀分布', params:'a, b', formula:'f(x)=1/(b−a)，x∈[a,b]', desc:'[a,b] 内等概率，最大熵分布', note:'均值=(a+b)/2，方差=(b−a)²/12', color:'#888780', fn:x=>(x>=-2&&x<=2)?0.25:0, range:[-3,3]},
+  {id:'beta', group:'other', name:'Beta 分布', params:'α, β', formula:'f(x)=x^(α−1)(1−x)^(β−1)/B(α,β)', desc:'取值 [0,1]，形态极灵活', note:'α=β 时对称；α<1 或 β<1 时边界为无穷大', color:'#1D9E75', fn:x=>{if(x<=0||x>=1)return 0;return Math.pow(x,1)*Math.pow(1-x,2)*12;}, range:[0,1]},
+  {id:'pois', group:'disc', name:'泊松分布', params:'λ（速率）', formula:'P(k)=λ^k·e^(−λ)/k!', desc:'单位时间内事件计数', note:'均值=方差=λ；λ 较大时趋近正态分布', color:'#D4537E', isDiscrete:true, fn:k=>{const la=4;let f=1;for(let i=1;i<=k;i++)f*=i;return Math.pow(la,k)*Math.exp(-la)/f;}, range:[0,12]},
+  {id:'binom', group:'disc', name:'二项分布', params:'n, p', formula:'P(k)=C(n,k)·p^k·(1−p)^(n−k)', desc:'n 次独立试验中成功次数', note:'均值=np，方差=np(1−p)', color:'#E24B4A', isDiscrete:true, fn:k=>{const n=10,p=0.4;let c=1;for(let i=0;i<k;i++)c*=(n-i)/(i+1);return c*Math.pow(p,k)*Math.pow(1-p,n-k);}, range:[0,10]},
+  {id:'negbinom', group:'disc', name:'负二项分布', params:'r, p', formula:'P(k)=C(k+r−1,k)·p^r(1−p)^k', desc:'第 r 次成功前的失败次数', note:'r=1 时退化为几何分布；适合过离散数据', color:'#F0997B', isDiscrete:true, fn:k=>{const r=3,p=0.5;let c=1;for(let i=0;i<k;i++)c*=(r+i)/(i+1);return c*Math.pow(p,r)*Math.pow(1-p,k);}, range:[0,12]},
 ];
-
-const catMeta = {sym:{label:'对称',cls:'cat-sym'}, skew:{label:'右偏',cls:'cat-skew'}, other:{label:'特殊',cls:'cat-multi'}, disc:{label:'离散',cls:'cat-disc'}};
-const groupEls = {sym:'g-sym', skew:'g-skew', other:'g-other', disc:'g-disc'};
-
-let chart = null;
-let selectedId = null;
 
 function makeMiniSvg(d) {
   const W=80, H=36;
-  const pts = [];
-  const steps = 60;
-  if(d.isDiscrete) {
+  if (d.isDiscrete) {
     const [lo,hi] = d.range;
-    let maxY=0;
-    for(let k=lo;k<=hi;k++) { const y=d.fn(k); if(y>maxY)maxY=y; }
+    const ks = [];
+    for (let k=lo; k<=hi; k++) ks.push(k);
+    let maxY = 0;
+    const ys = ks.map(k => { const y=d.fn(k); if(y>maxY) maxY=y; return y; });
     maxY = maxY||1;
-    const kArr = [];
-    for(let k=lo;k<=hi;k++) kArr.push(k);
-    const n = kArr.length;
-    const bw = W/(n+1);
+    const n = ks.length;
+    const bw = W / n;
     let bars = '';
-    kArr.forEach((k,i) => {
-      const y = d.fn(k);
+    ys.forEach((y,i) => {
       const bh = (y/maxY)*(H-4);
-      const x = (i+0.5)*bw;
-      bars += `<rect x="${(x-bw*0.3).toFixed(1)}" y="${(H-bh).toFixed(1)}" width="${(bw*0.6).toFixed(1)}" height="${bh.toFixed(1)}" fill="${d.color}" opacity="0.8"/>`;
+      const x = i*bw + bw*0.15;
+      const bwInner = bw*0.7;
+      bars += `<rect x="${x.toFixed(1)}" y="${(H-bh).toFixed(1)}" width="${bwInner.toFixed(1)}" height="${bh.toFixed(1)}" fill="${d.color}" opacity="0.85" rx="1"/>`;
     });
-    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible">${bars}</svg>`;
   }
   const [lo,hi] = d.range;
-  let maxY=0;
-  for(let i=0;i<=steps;i++) { const x=lo+(hi-lo)*i/steps; const y=d.fn(x); if(y>maxY)maxY=y; }
-  maxY=maxY||1;
-  for(let i=0;i<=steps;i++) {
-    const x=lo+(hi-lo)*i/steps;
-    const y=d.fn(x);
-    const px=(i/steps)*W;
-    const py=H-4-(y/maxY)*(H-6);
-    pts.push(`${px.toFixed(1)},${py.toFixed(1)}`);
+  const steps = 80;
+  let maxY = 0;
+  const xs = [], ys = [];
+  for (let i=0; i<=steps; i++) {
+    const x = lo+(hi-lo)*i/steps;
+    const y = d.fn(x);
+    xs.push(x); ys.push(y);
+    if (y>maxY) maxY=y;
   }
-  const first=pts[0], last=pts[pts.length-1];
-  const poly=`${first} ${pts.join(' ')} ${last.split(',')[0]},${H} 0,${H}`;
-  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg"><polygon points="${poly}" fill="${d.color}" opacity="0.18"/><polyline points="${pts.join(' ')}" fill="none" stroke="${d.color}" stroke-width="1.5"/></svg>`;
+  maxY = maxY||1;
+  const pts = xs.map((x,i) => {
+    const px = (i/steps)*W;
+    const py = H-2 - (ys[i]/maxY)*(H-4);
+    return `${px.toFixed(1)},${py.toFixed(1)}`;
+  });
+  const fillPts = `0,${H} ${pts.join(' ')} ${W},${H}`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg" style="display:block;overflow:visible"><polygon points="${fillPts}" fill="${d.color}" opacity="0.15"/><polyline points="${pts.join(' ')}" fill="none" stroke="${d.color}" stroke-width="1.8" stroke-linejoin="round"/></svg>`;
 }
 
-function renderCards() {
-  Object.entries(groupEls).forEach(([grp, elId]) => {
-    const el = document.getElementById(elId);
-    dists.filter(d=>d.group===grp).forEach(d => {
-      const card = document.createElement('div');
-      card.className = 'dist-card';
-      card.id = 'card-'+d.id;
-      const cm = catMeta[grp];
-      card.innerHTML = `
-        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:6px">
-          <div style="flex:1;min-width:0">
-            <div class="dist-name">${d.name}</div>
-            <div class="dist-param">${d.params}</div>
-            <div class="dist-desc">${d.desc}</div>
-          </div>
-          <div style="flex-shrink:0">${makeMiniSvg(d)}</div>
-        </div>`;
-      card.addEventListener('click', () => selectDist(d.id));
-      el.appendChild(card);
-    });
-  });
-}
+let chart = null, selectedId = null;
+const groupEls = {sym:'g-sym', skew:'g-skew', other:'g-other', disc:'g-disc'};
+
+dists.forEach(d => {
+  const el = document.getElementById(groupEls[d.group]);
+  if (!el) return;
+  const card = document.createElement('div');
+  card.className = 'dist-card';
+  card.id = 'card-'+d.id;
+  card.innerHTML = `<div class="card-inner"><div class="card-text"><div class="dist-name">${d.name}</div><div class="dist-param">${d.params}</div><div class="dist-desc">${d.desc}</div></div><div class="card-thumb">${makeMiniSvg(d)}</div></div>`;
+  card.addEventListener('click', () => selectDist(d.id));
+  el.appendChild(card);
+});
 
 function selectDist(id) {
-  if(selectedId) {
-    const prev = document.getElementById('card-'+selectedId);
-    if(prev) prev.classList.remove('selected');
-  }
+  if (selectedId) { const p=document.getElementById('card-'+selectedId); if(p) p.classList.remove('selected'); }
   selectedId = id;
-  const card = document.getElementById('card-'+id);
-  if(card) card.classList.add('selected');
+  const card = document.getElementById('card-'+id); if(card) card.classList.add('selected');
   const d = dists.find(x=>x.id===id);
-  drawPreview(d);
-}
-
-function drawPreview(d) {
   document.getElementById('preview-title').textContent = d.name;
   document.getElementById('preview-formula').textContent = d.formula;
   document.getElementById('preview-note').textContent = d.note;
-
-  if(chart) { chart.destroy(); chart=null; }
+  if (chart) { chart.destroy(); chart=null; }
   const ctx = document.getElementById('previewChart').getContext('2d');
-
-  if(d.isDiscrete) {
-    const [lo,hi] = d.range;
-    const labels=[], vals=[];
-    for(let k=lo;k<=hi;k++) { labels.push(String(k)); vals.push(+d.fn(k).toFixed(4)); }
-    chart = new Chart(ctx, {
-      type:'bar',
-      data:{ labels, datasets:[{label:'P(k)', data:vals, backgroundColor:d.color+'99', borderColor:d.color, borderWidth:1, barPercentage:0.6}] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false},ticks:{font:{size:11}}}, y:{ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}} } }
-    });
+  if (d.isDiscrete) {
+    const [lo,hi]=d.range, labels=[], vals=[];
+    for(let k=lo;k<=hi;k++){labels.push(String(k));vals.push(+d.fn(k).toFixed(5));}
+    chart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:'P(k)',data:vals,backgroundColor:d.color+'88',borderColor:d.color,borderWidth:1,barPercentage:0.65}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11}}},y:{ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}}}}});
   } else {
-    const [lo,hi] = d.range;
-    const steps=120, labels=[], vals=[];
-    for(let i=0;i<=steps;i++) {
-      const x=lo+(hi-lo)*i/steps;
-      labels.push(x.toFixed(2));
-      vals.push(+d.fn(x).toFixed(5));
-    }
-    chart = new Chart(ctx, {
-      type:'line',
-      data:{ labels, datasets:[{label:'f(x)', data:vals, borderColor:d.color, borderWidth:2, pointRadius:0, fill:true, backgroundColor:d.color+'22', tension:0.3}] },
-      options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-        scales:{ x:{ticks:{maxTicksLimit:8,font:{size:11}},grid:{display:false}}, y:{ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}} } }
-    });
+    const [lo,hi]=d.range,steps=120,labels=[],vals=[];
+    for(let i=0;i<=steps;i++){const x=lo+(hi-lo)*i/steps;labels.push(x.toFixed(2));vals.push(+d.fn(x).toFixed(6));}
+    chart=new Chart(ctx,{type:'line',data:{labels,datasets:[{label:'f(x)',data:vals,borderColor:d.color,borderWidth:2,pointRadius:0,fill:true,backgroundColor:d.color+'22',tension:0.3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{maxTicksLimit:8,font:{size:11}},grid:{display:false}},y:{ticks:{font:{size:11}},grid:{color:'rgba(128,128,128,0.1)'}}}}}); 
   }
 }
 
-renderCards();
 selectDist('norm');
 </script>
